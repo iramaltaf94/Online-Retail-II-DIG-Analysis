@@ -1,84 +1,421 @@
+# ============================================================
+# Online Retail II - DIG Framework Dashboard
+# Reads small CSV files from the repo root (flat, no data/ folder).
+# ============================================================
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-st.set_page_config(page_title="Online Retail II Dashboard", page_icon="🛒", layout="wide")
+st.set_page_config(page_title="Online Retail II - DIG Analysis", page_icon="🛒", layout="wide")
 
 
+# ---------- Helpers ----------
 @st.cache_data
 def load(name):
-    return pd.read_csv(f"{name}.csv")
+    """Read one CSV from the repo root. Returns an empty table if the file is missing."""
+    try:
+        return pd.read_csv(f"{name}.csv", dtype={"Customer ID": "string", "StockCode": "string"})
+    except FileNotFoundError:
+        return pd.DataFrame()
 
 
-monthly = load("monthly_revenue")
-dow = load("dow_revenue")
-hourly = load("hourly_revenue")
-top_rev = load("top_products_revenue")
-top_qty = load("top_products_quantity")
-pareto = load("pareto")
-cust = load("customer_summary")
+def ok(df, name):
+    """Show a friendly warning and return False when a CSV is missing."""
+    if df.empty:
+        st.warning(f"`{name}.csv` was not found in the repository root.")
+        return False
+    return True
 
-st.title("🛒 Online Retail II — Sales Dashboard")
-st.caption("DIG Framework mini project · Practice/learning project (Dec 2009 – Dec 2010), not for a real company")
 
-# ---- KPIs ----
-total_cust = int(cust["Customers"].sum())
-repeat = cust[cust["CustomerType"] == "Repeat"].iloc[0]
-cut = pareto[pareto["ProductRankPct"] <= 20]["CumulativeRevenuePct"].max()
-peak = monthly.loc[monthly["Revenue"].idxmax()]
+def table(df):
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("Top 20% products → revenue", f"{cut:.0f}%")
-k2.metric("Repeat customers", f"{repeat['Customers'] / total_cust:.0%}")
-k3.metric("Repeat revenue share", f"{repeat['TotalSpend'] / cust['TotalSpend'].sum():.0%}")
-k4.metric("Peak month", f"{peak['YearMonth']}")
 
-tab1, tab2, tab3 = st.tabs(["📈 Sales Trends", "📦 Products", "👥 Customers"])
+def bullets(items):
+    st.markdown("\n".join(f"- {i}" for i in items))
 
-with tab1:
-    st.subheader("Monthly Revenue (full months only)")
-    st.plotly_chart(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
-                            labels={"Revenue": "Revenue (£)"}), use_container_width=True)
-    st.caption("Dec 2009 and Dec 2010 are partial months, so they are excluded. "
-               "Revenue grows from Aug to Nov.")
-    a, b = st.columns(2)
-    a.subheader("Day of Week")
-    a.plotly_chart(px.bar(dow, x="DayOfWeek", y="Revenue", labels={"Revenue": "Revenue (£)"}),
-                   use_container_width=True)
-    a.caption("Near-zero Saturday revenue is a platform pattern, not customer behaviour.")
-    b.subheader("Hour of Day")
-    b.plotly_chart(px.bar(hourly, x="Hour", y="Revenue", labels={"Revenue": "Revenue (£)"}),
-                   use_container_width=True)
 
-with tab2:
-    a, b = st.columns(2)
-    a.subheader("Top 10 by Revenue")
-    a.plotly_chart(px.bar(top_rev.iloc[::-1], x="TotalRevenue", y="Description", orientation="h",
-                          labels={"TotalRevenue": "Revenue (£)"}), use_container_width=True)
-    b.subheader("Top 10 by Quantity")
-    b.plotly_chart(px.bar(top_qty.iloc[::-1], x="TotalQuantitySold", y="Description", orientation="h",
-                          labels={"TotalQuantitySold": "Units sold"}), use_container_width=True)
-    common = set(top_rev["Description"].str.strip()) & set(top_qty["Description"].str.strip())
-    st.info(f"Only {len(common)} products appear in both top-10 — looking at "
-            "volume alone can miss high-revenue products.")
+# ---------- Header and KPIs ----------
+st.title("🛒 Online Retail II: DIG Framework Analysis")
+st.caption("Discover → Interpret → Goal-Set | UCI Online Retail II, Dec 2009 to Dec 2010")
 
-    st.subheader("Revenue Concentration (Pareto)")
-    fig = px.line(pareto, x="ProductRankPct", y="CumulativeRevenuePct",
-                  labels={"ProductRankPct": "% of products (ranked by revenue)",
-                          "CumulativeRevenuePct": "Cumulative % of revenue"})
-    fig.add_hline(y=80, line_dash="dash")
-    fig.add_vline(x=20, line_dash="dash")
-    st.plotly_chart(fig, use_container_width=True)
-    st.info(f"The top 20% of products generate about **{cut:.0f}%** of revenue.")
+kpi_df = load("kpi_summary")
+kpi = dict(zip(kpi_df["Metric"], kpi_df["Value"])) if not kpi_df.empty else {}
 
-with tab3:
-    a, b = st.columns(2)
-    a.subheader("Customer Split")
-    a.plotly_chart(px.pie(cust, names="CustomerType", values="Customers"), use_container_width=True)
-    b.subheader("Revenue by Customer Type")
-    b.plotly_chart(px.bar(cust, x="CustomerType", y="TotalSpend", labels={"TotalSpend": "Spend (£)"}),
-                   use_container_width=True)
-    st.caption("Only rows with a valid Customer ID (~80% of the data) are used.")
 
-st.divider()
-st.caption("Source: Online Retail II, UCI Machine Learning Repository · Built with Python, pandas, Streamlit")
+def kv(key, fmt):
+    return fmt(kpi[key]) if key in kpi else "n/a"
+
+
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Total revenue", kv("Total revenue", lambda v: f"£{v:,.0f}"))
+c2.metric("Invoices", kv("Invoices", lambda v: f"{v:,.0f}"))
+c3.metric("Identified customers", kv("Identified customers", lambda v: f"{v:,.0f}"))
+c4.metric("Products", kv("Products", lambda v: f"{v:,.0f}"))
+
+tabs = st.tabs([
+    "Overview", "Data Cleaning", "Feature Engineering", "EDA", "Discover",
+    "Interpret", "Goal-Set", "Findings & Recommendations", "Limitations & Tools",
+])
+
+
+# ============================================================
+# 1. OVERVIEW
+# ============================================================
+with tabs[0]:
+    st.header("Project overview")
+    st.write(
+        "This project analyses the Online Retail II dataset, a UK-based online wholesaler of gift and "
+        "homeware products. The analysis follows the DIG framework to move from raw transactions to "
+        "measurable business goals. The primary focus is sales trends and product performance, with a "
+        "lighter secondary view of customers."
+    )
+    st.subheader("The DIG framework")
+    d1, d2, d3 = st.columns(3)
+    d1.markdown("**Discover**\n\nDescribe the data: structure, quality, trends, top products and customer split.")
+    d2.markdown("**Interpret**\n\nExplain why the patterns appear and what each finding does and does not prove.")
+    d3.markdown("**Goal-Set**\n\nTurn supported findings into SMART goals with baselines, targets and priorities.")
+    st.subheader("Dataset facts (raw data)")
+    facts = load("raw_facts")
+    if ok(facts, "raw_facts"):
+        table(facts)
+    st.info("Only the first sheet of the Excel file was used. The raw dataset is not stored in the repository.")
+
+
+# ============================================================
+# 2. DATA CLEANING
+# ============================================================
+with tabs[1]:
+    st.header("Data cleaning")
+    steps = load("cleaning_steps")
+    if ok(steps, "cleaning_steps"):
+        raw_rows, clean_rows = int(steps["RowsRemaining"].iloc[0]), int(steps["RowsRemaining"].iloc[-1])
+        a, b, c = st.columns(3)
+        a.metric("Rows before cleaning", f"{raw_rows:,}")
+        b.metric("Rows after cleaning", f"{clean_rows:,}")
+        c.metric("Rows removed or set aside", f"{raw_rows - clean_rows:,}")
+        fig = px.bar(steps, x="Step", y="RowsRemaining", text="RowsRemaining",
+                     hover_data=["Action", "RowsRemoved"], title="Rows remaining after each cleaning step")
+        fig.update_traces(texttemplate="%{text:,}")
+        fig.update_yaxes(range=[480000, 530000])
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("The y-axis starts at 480,000 so the small drops stay visible.")
+        table(steps)
+
+    st.subheader("What was removed and why")
+    bullets([
+        "**Exact duplicates:** they inflate every count and total without adding information.",
+        "**Non-product StockCodes** (postage, fees, discounts, manual entries): not product sales.",
+        "**Cancellations** (invoices starting with C): set aside so gross sales are not distorted.",
+        "**Non-C negative quantities:** a separate group, likely stock write-offs, not customer cancellations.",
+        "**Zero-price rows:** samples, giveaways or stock movements with no revenue.",
+        "**Missing Customer ID (about 20%):** kept, because trend and product analysis does not need it. "
+        "These rows are excluded only from the customer view.",
+        "**Real products with unusual codes** (PADS, DCGSSGIRL, DCGSSBOY, DCGSLBOY, DCGSLGIRL) were kept after manual review.",
+    ])
+
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Data set aside")
+        side = load("side_datasets")
+        if ok(side, "side_datasets"):
+            table(side)
+    with right:
+        st.subheader("Missing values in the raw data")
+        miss = load("missing_raw")
+        if ok(miss, "missing_raw"):
+            fig = px.bar(miss[miss["Missing"] > 0], x="Column", y="Missing", text="MissingPct")
+            fig.update_traces(texttemplate="%{text}%")
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Non-product StockCodes that were excluded")
+    npc = load("non_product_codes")
+    if ok(npc, "non_product_codes"):
+        table(npc)
+
+
+# ============================================================
+# 3. FEATURE ENGINEERING
+# ============================================================
+with tabs[2]:
+    st.header("Feature engineering")
+    st.write("New columns and aggregates were created at four levels: row, date, product, invoice and customer.")
+    feats = load("features_catalog")
+    if ok(feats, "features_catalog"):
+        table(feats)
+    st.subheader("Sample of the clean data with new features")
+    s = load("sample_clean_rows")
+    if ok(s, "sample_clean_rows"):
+        table(s)
+    st.subheader("Product aggregate (top 10 by revenue)")
+    s = load("sample_product_agg")
+    if ok(s, "sample_product_agg"):
+        table(s)
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Invoice aggregate (sample)")
+        s = load("sample_invoice_agg")
+        if ok(s, "sample_invoice_agg"):
+            table(s)
+    with right:
+        st.subheader("Customer aggregate (sample)")
+        s = load("sample_customer_agg")
+        if ok(s, "sample_customer_agg"):
+            table(s)
+    st.caption(
+        "The customer aggregate uses only rows with a valid Customer ID. A full RFM segmentation was "
+        "considered and deliberately left out to keep the customer view simple."
+    )
+
+
+# ============================================================
+# 4. EDA
+# ============================================================
+with tabs[3]:
+    st.header("Exploratory data analysis")
+    st.subheader("Summary statistics (clean data)")
+    ns = load("numeric_summary")
+    if ok(ns, "numeric_summary"):
+        table(ns)
+    st.subheader("Invoice-level statistics")
+    inv = load("invoice_summary")
+    if ok(inv, "invoice_summary"):
+        table(inv)
+
+    st.subheader("Distributions")
+    st.caption("Values above the 99th percentile are hidden so the main shape stays readable. All three are right-skewed.")
+    h1, h2, h3 = st.columns(3)
+    for col, name, label in [(h1, "hist_quantity", "Quantity per row"),
+                             (h2, "hist_price", "Price per unit (£)"),
+                             (h3, "hist_invoice_total", "Invoice total (£)")]:
+        with col:
+            h = load(name)
+            if ok(h, name):
+                h["BinMid"] = (h["BinStart"] + h["BinEnd"]) / 2
+                fig = px.bar(h, x="BinMid", y="Count", title=label)
+                fig.update_layout(xaxis_title=label, bargap=0.05)
+                st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Correlations")
+    k1, k2 = st.columns(2)
+    for col, name, label in [(k1, "correlation", "Row level"), (k2, "product_correlation", "Product level")]:
+        with col:
+            cdf = load(name)
+            if ok(cdf, name):
+                fig = px.imshow(cdf.set_index("Variable"), text_auto=True, zmin=-1, zmax=1,
+                                color_continuous_scale="RdBu_r", title=label)
+                st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Revenue by country (top 10)")
+    ctry = load("country_revenue")
+    if ok(ctry, "country_revenue"):
+        fig = px.bar(ctry.sort_values("Revenue"), x="Revenue", y="Country", orientation="h")
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("Descriptive only. Country-level causes were not investigated in the notebook.")
+
+
+# ============================================================
+# 5. DISCOVER
+# ============================================================
+with tabs[4]:
+    st.header("Discover: what does the data show?")
+
+    st.subheader("Sales trends")
+    monthly = load("monthly_revenue")
+    if ok(monthly, "monthly_revenue"):
+        st.plotly_chart(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
+                                title="Monthly revenue (full months only, Jan-Nov 2010)"),
+                        use_container_width=True)
+    monthly_all = load("monthly_revenue_all")
+    if not monthly_all.empty:
+        with st.expander("Show all months including the two partial months"):
+            st.plotly_chart(px.bar(monthly_all, x="YearMonth", y="Revenue", color="MonthType"),
+                            use_container_width=True)
+
+    left, right = st.columns(2)
+    with left:
+        dow = load("dow_revenue")
+        if ok(dow, "dow_revenue"):
+            st.plotly_chart(px.bar(dow, x="DayOfWeek", y="Revenue", title="Revenue by day of week"),
+                            use_container_width=True)
+    with right:
+        hourly = load("hourly_revenue")
+        if ok(hourly, "hourly_revenue"):
+            st.plotly_chart(px.bar(hourly, x="Hour", y="Revenue", title="Revenue by hour of day"),
+                            use_container_width=True)
+
+    st.subheader("Product performance")
+    left, right = st.columns(2)
+    with left:
+        tr = load("top_products_revenue")
+        if ok(tr, "top_products_revenue"):
+            st.plotly_chart(px.bar(tr.sort_values("TotalRevenue"), x="TotalRevenue", y="Description",
+                                   orientation="h", title="Top 10 products by revenue"),
+                            use_container_width=True)
+    with right:
+        tq = load("top_products_quantity")
+        if ok(tq, "top_products_quantity"):
+            st.plotly_chart(px.bar(tq.sort_values("TotalQuantitySold"), x="TotalQuantitySold", y="Description",
+                                   orientation="h", title="Top 10 products by units sold"),
+                            use_container_width=True)
+
+    pareto = load("pareto")
+    if ok(pareto, "pareto"):
+        fig = px.line(pareto, x="ProductRankPct", y="CumulativeRevenuePct",
+                      title="Revenue concentration across products")
+        fig.add_hline(y=80, line_dash="dash", line_color="red")
+        fig.add_vline(x=20, line_dash="dash", line_color="gray")
+        fig.update_layout(xaxis_title="% of products (ranked by revenue)", yaxis_title="Cumulative % of revenue")
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Customer view (customers with a valid ID only)")
+    cust = load("customer_summary")
+    if ok(cust, "customer_summary"):
+        left, right = st.columns(2)
+        with left:
+            st.plotly_chart(px.pie(cust, names="CustomerType", values="Customers",
+                                   title="Customers: repeat vs one-time"), use_container_width=True)
+        with right:
+            st.plotly_chart(px.bar(cust, x="CustomerType", y="TotalSpend",
+                                   title="Total spend: repeat vs one-time"), use_container_width=True)
+    detail = load("customer_detail")
+    if not detail.empty:
+        table(detail)
+
+
+# ============================================================
+# 6. INTERPRET
+# ============================================================
+with tabs[5]:
+    st.header("Interpret: what do the patterns mean?")
+    st.subheader("Data quality")
+    bullets([
+        "Negative quantity does not always mean a cancellation: 2,119 rows were negative without a C invoice, "
+        "so they were treated as a separate group.",
+        "Pattern-based filters (short or all-letter StockCodes) needed manual review: five real products "
+        "would otherwise have been dropped.",
+        "Missing Customer IDs may not be random, so customer findings may not describe the whole customer base.",
+    ])
+    st.subheader("Sales trends")
+    bullets([
+        "**Seasonality:** revenue builds from August and peaks in November 2010, consistent with pre-Christmas "
+        "ordering. December was excluded because both December months are partial.",
+        "**Day of week:** Monday to Thursday is steady, Thursday peaks, Friday dips and Sunday is strong. "
+        "Saturday has only 400 rows because the platform barely processed orders, not because demand was low.",
+        "**Hour of day:** activity starts around 7am, peaks at noon and tapers by 8pm, which points to "
+        "business-hours B2B ordering rather than consumer shopping.",
+    ])
+    st.subheader("Products")
+    bullets([
+        "Only 3 products appear in both the top-10 revenue and top-10 quantity lists. Cheap bulk items drive "
+        "volume, while higher-priced items drive revenue, so volume alone would misidentify the products that matter.",
+        "The top 20% of products (848 of 4,242) generate about 78% of revenue, close to a classic 80/20 split.",
+    ])
+    st.subheader("Customers")
+    bullets([
+        "Repeat customers are 67% of identified customers (2,873 of 4,285) but generate about 94% of "
+        "their revenue (£8.14M of £8.64M).",
+        "**Cross-cutting theme:** revenue is concentrated in a minority of products and a minority of customers.",
+    ])
+
+
+# ============================================================
+# 7. GOAL-SET
+# ============================================================
+with tabs[6]:
+    st.header("Goal-Set: from findings to SMART goals")
+    st.info(
+        "The dataset has no business targets, budgets or timelines, so all target values and timeframes "
+        "are illustrative. Baselines come directly from the notebook outputs."
+    )
+    goals = load("goals")
+    if ok(goals, "goals"):
+        area = st.selectbox("Filter by area", ["All"] + sorted(goals["Area"].unique()))
+        table(goals if area == "All" else goals[goals["Area"] == area])
+
+    st.subheader("Top three quick wins")
+    bullets([
+        "**ST1:** complete peak-season readiness before August (high impact, medium effort).",
+        "**PP3:** prioritise the top 848 products (high impact, medium effort).",
+        "**CV2:** grow repeat-customer revenue (high impact, medium effort).",
+    ])
+
+    st.subheader("Goal evaluation")
+    scores = load("goal_scores")
+    if ok(scores, "goal_scores"):
+        st.plotly_chart(px.bar(scores.sort_values("Total"), x="Total", y="Goal", orientation="h",
+                               title="Candidate goal scores (out of 30)"), use_container_width=True)
+        table(scores)
+
+    st.subheader("Recommended final goal")
+    st.success(
+        "Increase the revenue contribution of the top 848 products from the historical baseline of 78% to an "
+        "illustrative target of 80%, using focused inventory, marketing and sales effort."
+    )
+    st.write(
+        "**Traceability:** the top 848 products (20% of the catalogue) generated 78% of product revenue → "
+        "a small group of products drives most revenue and deserves more focus → raise their contribution to 80%. "
+        "It scored highest (29 of 30) because it has a clear baseline, an existing metric and depends less on "
+        "missing information than the repeat-customer goal."
+    )
+
+    st.subheader("Areas where no defensible goal can be set")
+    bullets([
+        "Year-over-year growth (only one complete year)",
+        "Profit or margin (no cost data)",
+        "Product-category growth (no category field)",
+        "Marketing-channel performance (no channel field)",
+        "Cancellation reduction by cause (no reason codes)",
+        "Geographic diversification (country causes not investigated)",
+        "Cross-category cross-selling (variants of similar products not separated)",
+        "Basket size or invoice value (computed but not interpreted)",
+    ])
+
+
+# ============================================================
+# 8. FINDINGS & RECOMMENDATIONS
+# ============================================================
+with tabs[7]:
+    st.header("Key findings")
+    bullets([
+        "Cleaning reduced 525,461 raw rows to 502,512 analysis-ready rows.",
+        "Revenue builds from August to a November peak, a seasonal pattern consistent with pre-Christmas ordering.",
+        "Ordering follows business hours (7am to 8pm, peak at noon), typical of B2B wholesale.",
+        "Revenue leaders and volume leaders are mostly different products (only 3 overlap).",
+        "The top 20% of products generate about 78% of revenue.",
+        "Repeat customers are 67% of identified customers and generate about 94% of their revenue.",
+    ])
+    st.header("Recommendations")
+    bullets([
+        "**Prepare for peak season early:** have stock and order-processing capacity ready by the end of July.",
+        "**Focus on the top 848 products:** protect availability and direct marketing toward them.",
+        "**Rank products by revenue, not only volume:** Regency Cakestand 3 Tier and White Hanging Heart "
+        "T-Light Holder deserve specific attention.",
+        "**Invest in repeat customers:** they carry most identifiable revenue, and converting more one-time buyers is valuable.",
+        "**Align staffing with ordering hours:** cover 7am to 8pm with the strongest coverage around noon.",
+        "**Report Saturday separately** so limited processing is not read as weak demand.",
+        "**Improve data capture:** remove duplicates before analysis and reduce missing Customer IDs.",
+    ])
+
+
+# ============================================================
+# 9. LIMITATIONS & TOOLS
+# ============================================================
+with tabs[8]:
+    st.header("Limitations")
+    bullets([
+        "Only one full year is available, so seasonality can be studied but year-over-year growth cannot.",
+        "December 2009 and December 2010 are partial months and were excluded from trend views.",
+        "About 20% of clean rows have no Customer ID, so customer findings may not generalise.",
+        "No cost, category, marketing-channel or cancellation-reason data exists, so profit, category and cause analysis is not possible.",
+        "The United Kingdom dominates the data, and country-level performance was not investigated.",
+        "Only the first sheet of the Excel file was analysed.",
+        "All goal targets and timeframes are illustrative, not business-supplied.",
+    ])
+    st.header("Tools used")
+    bullets([
+        "**Python** with pandas and numpy for cleaning and aggregation",
+        "**matplotlib and seaborn** for charts in the notebook",
+        "**Google Colab and Google Drive** for the notebook environment and data storage",
+        "**Streamlit and Plotly** for this dashboard",
+        "**GitHub and Streamlit Community Cloud** for hosting and automatic deployment
