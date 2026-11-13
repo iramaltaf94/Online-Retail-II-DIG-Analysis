@@ -7,7 +7,7 @@ st.set_page_config(page_title="Online Retail II Dashboard", page_icon="🛒", la
 
 @st.cache_data
 def load(name):
-    return pd.read_csv(f"data/{name}.csv")
+    return pd.read_csv(f"{name}.csv")
 
 
 monthly = load("monthly_revenue")
