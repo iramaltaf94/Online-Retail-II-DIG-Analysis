@@ -9,6 +9,9 @@ A collaborative **team learning project** (Jul 2026 – Aug 2026) built on the O
 - 525,461 transactions, 8 columns (Invoice, StockCode, Description, Quantity, InvoiceDate, Price, Customer ID, Country)
 - Time range: Dec 2009 – Dec 2010
 - After cleaning: 502,512 rows
+- - Source: [Online Retail II, UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/502/online+retail+ii)
+- Note: the full dataset covers two years (1,067,371 rows). This analysis uses the first year only (Dec 2009 – Dec 2010).
+- The dataset file is not included in this repository due to its size.
 
 ## Analysis Performed
 
