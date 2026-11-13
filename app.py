@@ -62,8 +62,9 @@ def show(fig, **_):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def bar3d(labels, values, title, z_title="Revenue (£)"):
-    """Build a real 3D bar chart from boxes (Plotly Mesh3d). Drag to rotate, scroll to zoom."""
+def bar3d(labels, values, title, z_title="Revenue (£)", max_ticks=14, tick_len=18):
+    """Build a real 3D bar chart from boxes (Plotly Mesh3d). Drag to rotate, scroll to zoom.
+    Long labels are shortened on the axis (full text stays in the hover box)."""
     labels = [str(lab) for lab in labels]
     values = [float(v) for v in values]
     w = 0.32  # half the width of one bar
@@ -86,10 +87,14 @@ def bar3d(labels, values, title, z_title="Revenue (£)"):
         showscale=False, flatshading=True, text=hover, hoverinfo="text",
         lighting=dict(ambient=0.6, diffuse=0.8, specular=0.2),
     ))
+    # Show at most max_ticks labels so crowded charts (e.g. histograms) stay readable
+    step = max(1, -(-len(labels) // max_ticks))
+    tick_pos = list(range(0, len(labels), step))
+    tick_txt = [labels[p] if len(labels[p]) <= tick_len else labels[p][: tick_len - 1] + "…" for p in tick_pos]
     fig.update_layout(
         title=title, height=460,
         scene=dict(
-            xaxis=dict(tickmode="array", tickvals=list(range(len(labels))), ticktext=labels, title=""),
+            xaxis=dict(tickmode="array", tickvals=tick_pos, ticktext=tick_txt, title="", tickangle=-30),
             yaxis=dict(visible=False),
             zaxis=dict(title=z_title),
             aspectmode="manual", aspectratio=dict(x=2.4, y=0.7, z=0.9),
@@ -159,12 +164,17 @@ with tabs[1]:
         a.metric("Rows before cleaning", f"{raw_rows:,}")
         b.metric("Rows after cleaning", f"{clean_rows:,}")
         c.metric("Rows removed or set aside", f"{raw_rows - clean_rows:,}")
-        fig = px.bar(steps, x="Step", y="RowsRemaining", text="RowsRemaining",
-                     hover_data=["Action", "RowsRemoved"], title="Rows remaining after each cleaning step")
-        fig.update_traces(texttemplate="%{text:,}")
-        fig.update_yaxes(range=[480000, 530000])
-        show(fig, use_container_width=True)
-        st.caption("The y-axis starts at 480,000 so the small drops stay visible.")
+        if USE_3D:
+            removed = steps.iloc[1:]  # skip step 0 (the raw dataset removed nothing)
+            show(bar3d(["Step " + s for s in removed["Step"]], removed["RowsRemoved"],
+                       "Rows removed or set aside at each cleaning step", z_title="Rows"))
+        else:
+            fig = px.bar(steps, x="Step", y="RowsRemaining", text="RowsRemaining",
+                         hover_data=["Action", "RowsRemoved"], title="Rows remaining after each cleaning step")
+            fig.update_traces(texttemplate="%{text:,}")
+            fig.update_yaxes(range=[480000, 530000])
+            show(fig)
+            st.caption("The y-axis starts at 480,000 so the small drops stay visible.")
         table(steps)
 
     st.subheader("What was removed and why")
@@ -189,9 +199,13 @@ with tabs[1]:
         st.subheader("Missing values in the raw data")
         miss = load("missing_raw")
         if ok(miss, "missing_raw"):
-            fig = px.bar(miss[miss["Missing"] > 0], x="Column", y="Missing", text="MissingPct")
-            fig.update_traces(texttemplate="%{text}%")
-            show(fig, use_container_width=True)
+            m = miss[miss["Missing"] > 0]
+            if USE_3D:
+                show(bar3d(m["Column"], m["Missing"], "Missing values (raw data)", z_title="Missing rows"))
+            else:
+                fig = px.bar(m, x="Column", y="Missing", text="MissingPct")
+                fig.update_traces(texttemplate="%{text}%")
+                show(fig)
 
     st.subheader("Non-product StockCodes that were excluded")
     npc = load("non_product_codes")
@@ -257,9 +271,12 @@ with tabs[3]:
             h = load(name)
             if ok(h, name):
                 h["BinMid"] = (h["BinStart"] + h["BinEnd"]) / 2
-                fig = px.bar(h, x="BinMid", y="Count", title=label)
-                fig.update_layout(xaxis_title=label, bargap=0.05)
-                show(fig, use_container_width=True)
+                if USE_3D:
+                    show(bar3d(h["BinMid"].round(1), h["Count"], label, z_title="Count", max_ticks=6))
+                else:
+                    fig = px.bar(h, x="BinMid", y="Count", title=label)
+                    fig.update_layout(xaxis_title=label, bargap=0.05)
+                    show(fig)
 
     st.subheader("Correlations")
     k1, k2 = st.columns(2)
@@ -274,8 +291,10 @@ with tabs[3]:
     st.subheader("Revenue by country (top 10)")
     ctry = load("country_revenue")
     if ok(ctry, "country_revenue"):
-        fig = px.bar(ctry.sort_values("Revenue"), x="Revenue", y="Country", orientation="h")
-        show(fig, use_container_width=True)
+        if USE_3D:
+            show(bar3d(ctry["Country"], ctry["Revenue"], "Revenue by country (top 10)", tick_len=12))
+        else:
+            show(px.bar(ctry.sort_values("Revenue"), x="Revenue", y="Country", orientation="h"))
         st.caption("Descriptive only. Country-level causes were not investigated in the notebook.")
 
 
@@ -320,15 +339,20 @@ with tabs[4]:
     with left:
         tr = load("top_products_revenue")
         if ok(tr, "top_products_revenue"):
-            show(px.bar(tr.sort_values("TotalRevenue"), x="TotalRevenue", y="Description",
-                                   orientation="h", title="Top 10 products by revenue"),
-                            use_container_width=True)
+            if USE_3D:
+                show(bar3d(tr["Description"], tr["TotalRevenue"], "Top 10 products by revenue", tick_len=14))
+            else:
+                show(px.bar(tr.sort_values("TotalRevenue"), x="TotalRevenue", y="Description",
+                            orientation="h", title="Top 10 products by revenue"))
     with right:
         tq = load("top_products_quantity")
         if ok(tq, "top_products_quantity"):
-            show(px.bar(tq.sort_values("TotalQuantitySold"), x="TotalQuantitySold", y="Description",
-                                   orientation="h", title="Top 10 products by units sold"),
-                            use_container_width=True)
+            if USE_3D:
+                show(bar3d(tq["Description"], tq["TotalQuantitySold"], "Top 10 products by units sold",
+                           z_title="Units sold", tick_len=14))
+            else:
+                show(px.bar(tq.sort_values("TotalQuantitySold"), x="TotalQuantitySold", y="Description",
+                            orientation="h", title="Top 10 products by units sold"))
 
     pareto = load("pareto")
     if ok(pareto, "pareto"):
@@ -347,8 +371,11 @@ with tabs[4]:
             show(px.pie(cust, names="CustomerType", values="Customers",
                                    title="Customers: repeat vs one-time"), use_container_width=True)
         with right:
-            show(px.bar(cust, x="CustomerType", y="TotalSpend",
-                                   title="Total spend: repeat vs one-time"), use_container_width=True)
+            if USE_3D:
+                show(bar3d(cust["CustomerType"], cust["TotalSpend"], "Total spend: repeat vs one-time",
+                           z_title="Total spend (£)"))
+            else:
+                show(px.bar(cust, x="CustomerType", y="TotalSpend", title="Total spend: repeat vs one-time"))
     detail = load("customer_detail")
     if not detail.empty:
         table(detail)
@@ -414,8 +441,13 @@ with tabs[6]:
     st.subheader("Goal evaluation")
     scores = load("goal_scores")
     if ok(scores, "goal_scores"):
-        show(px.bar(scores.sort_values("Total"), x="Total", y="Goal", orientation="h",
-                               title="Candidate goal scores (out of 30)"), use_container_width=True)
+        if USE_3D:
+            ranked = scores.sort_values("Total", ascending=False)
+            show(bar3d(ranked["Goal"], ranked["Total"], "Candidate goal scores (out of 30)",
+                       z_title="Score", tick_len=16))
+        else:
+            show(px.bar(scores.sort_values("Total"), x="Total", y="Goal", orientation="h",
+                        title="Candidate goal scores (out of 30)"))
         table(scores)
 
     st.subheader("Recommended final goal")
