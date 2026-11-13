@@ -413,9 +413,10 @@ with tabs[8]:
         "All goal targets and timeframes are illustrative, not business-supplied.",
     ])
     st.header("Tools used")
-    bullets([
+   bullets([
         "**Python** with pandas and numpy for cleaning and aggregation",
         "**matplotlib and seaborn** for charts in the notebook",
         "**Google Colab and Google Drive** for the notebook environment and data storage",
         "**Streamlit and Plotly** for this dashboard",
         "**GitHub and Streamlit Community Cloud** for hosting and automatic deployment",
+    ])
