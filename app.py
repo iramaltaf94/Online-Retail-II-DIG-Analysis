@@ -40,7 +40,7 @@ with tab1:
     st.plotly_chart(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
                             labels={"Revenue": "Revenue (£)"}), use_container_width=True)
     st.caption("Dec 2009 and Dec 2010 are partial months, so they are excluded. "
-               "Revenue grows from Aug se Nov.")
+               "Revenue grows from Aug to Nov.")
     a, b = st.columns(2)
     a.subheader("Day of Week")
     a.plotly_chart(px.bar(dow, x="DayOfWeek", y="Revenue", labels={"Revenue": "Revenue (£)"}),
