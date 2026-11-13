@@ -4,6 +4,7 @@
 # ============================================================
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 st.set_page_config(page_title="Online Retail II - DIG Analysis", page_icon="🛒", layout="wide")
@@ -35,9 +36,73 @@ def bullets(items):
     st.markdown("\n".join(f"- {i}" for i in items))
 
 
+# ---------- Chart styling ----------
+PALETTE = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"]
+GRADIENT = [[0, "#93c5fd"], [1, "#1d4ed8"]]  # light blue (low) to dark blue (high)
+
+
+def show(fig, **_):
+    """Apply one consistent, modern style to every chart, then display it."""
+    fig.update_layout(
+        template="plotly_white", colorway=PALETTE, font=dict(size=13),
+        title_font=dict(size=16), margin=dict(l=10, r=10, t=50, b=10),
+        hoverlabel=dict(font_size=13),
+    )
+    for tr in fig.data:
+        if tr.type == "bar":
+            # White outline between bars; colour a single-series bar chart by its value
+            tr.marker.line.color = "white"
+            tr.marker.line.width = 1.5
+            if tr.marker.color is None and len(fig.data) == 1:
+                tr.marker.color = tr.x if tr.orientation == "h" else tr.y
+                tr.marker.colorscale = GRADIENT
+        elif tr.type == "pie":
+            tr.hole = 0.45  # donut style
+            tr.textinfo = "percent+label"
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def bar3d(labels, values, title, z_title="Revenue (£)"):
+    """Build a real 3D bar chart from boxes (Plotly Mesh3d). Drag to rotate, scroll to zoom."""
+    labels = [str(lab) for lab in labels]
+    values = [float(v) for v in values]
+    w = 0.32  # half the width of one bar
+    # 12 triangles = the 6 faces of one box (vertices 0-3 are the base, 4-7 the top)
+    faces = [(0, 1, 2), (0, 2, 3), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
+             (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]
+    x, y, z, i, j, k, intensity, hover = [], [], [], [], [], [], [], []
+    for n, (lab, v) in enumerate(zip(labels, values)):
+        x += [n - w, n + w, n + w, n - w] * 2
+        y += [-w, -w, w, w] * 2
+        z += [0] * 4 + [v] * 4
+        base = 8 * n
+        i += [base + f[0] for f in faces]
+        j += [base + f[1] for f in faces]
+        k += [base + f[2] for f in faces]
+        intensity += [v] * 8
+        hover += [f"{lab}<br>{z_title}: {v:,.0f}"] * 8
+    fig = go.Figure(go.Mesh3d(
+        x=x, y=y, z=z, i=i, j=j, k=k, intensity=intensity, colorscale=GRADIENT,
+        showscale=False, flatshading=True, text=hover, hoverinfo="text",
+        lighting=dict(ambient=0.6, diffuse=0.8, specular=0.2),
+    ))
+    fig.update_layout(
+        title=title, height=460,
+        scene=dict(
+            xaxis=dict(tickmode="array", tickvals=list(range(len(labels))), ticktext=labels, title=""),
+            yaxis=dict(visible=False),
+            zaxis=dict(title=z_title),
+            aspectmode="manual", aspectratio=dict(x=2.4, y=0.7, z=0.9),
+            camera=dict(eye=dict(x=1.5, y=-1.8, z=0.9)),
+        ),
+    )
+    return fig
+
+
 # ---------- Header and KPIs ----------
 st.title("🛒 Online Retail II: DIG Framework Analysis")
 st.caption("Discover → Interpret → Goal-Set | UCI Online Retail II, Dec 2009 to Dec 2010")
+USE_3D = st.checkbox("Show 3D bar charts (untick for flat charts)", value=True)
 
 kpi_df = load("kpi_summary")
 kpi = dict(zip(kpi_df["Metric"], kpi_df["Value"])) if not kpi_df.empty else {}
@@ -98,7 +163,7 @@ with tabs[1]:
                      hover_data=["Action", "RowsRemoved"], title="Rows remaining after each cleaning step")
         fig.update_traces(texttemplate="%{text:,}")
         fig.update_yaxes(range=[480000, 530000])
-        st.plotly_chart(fig, use_container_width=True)
+        show(fig, use_container_width=True)
         st.caption("The y-axis starts at 480,000 so the small drops stay visible.")
         table(steps)
 
@@ -126,7 +191,7 @@ with tabs[1]:
         if ok(miss, "missing_raw"):
             fig = px.bar(miss[miss["Missing"] > 0], x="Column", y="Missing", text="MissingPct")
             fig.update_traces(texttemplate="%{text}%")
-            st.plotly_chart(fig, use_container_width=True)
+            show(fig, use_container_width=True)
 
     st.subheader("Non-product StockCodes that were excluded")
     npc = load("non_product_codes")
@@ -194,7 +259,7 @@ with tabs[3]:
                 h["BinMid"] = (h["BinStart"] + h["BinEnd"]) / 2
                 fig = px.bar(h, x="BinMid", y="Count", title=label)
                 fig.update_layout(xaxis_title=label, bargap=0.05)
-                st.plotly_chart(fig, use_container_width=True)
+                show(fig, use_container_width=True)
 
     st.subheader("Correlations")
     k1, k2 = st.columns(2)
@@ -204,13 +269,13 @@ with tabs[3]:
             if ok(cdf, name):
                 fig = px.imshow(cdf.set_index("Variable"), text_auto=True, zmin=-1, zmax=1,
                                 color_continuous_scale="RdBu_r", title=label)
-                st.plotly_chart(fig, use_container_width=True)
+                show(fig, use_container_width=True)
 
     st.subheader("Revenue by country (top 10)")
     ctry = load("country_revenue")
     if ok(ctry, "country_revenue"):
         fig = px.bar(ctry.sort_values("Revenue"), x="Revenue", y="Country", orientation="h")
-        st.plotly_chart(fig, use_container_width=True)
+        show(fig, use_container_width=True)
         st.caption("Descriptive only. Country-level causes were not investigated in the notebook.")
 
 
@@ -222,26 +287,32 @@ with tabs[4]:
 
     st.subheader("Sales trends")
     monthly = load("monthly_revenue")
-    if ok(monthly, "monthly_revenue"):
-        st.plotly_chart(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
+    if USE_3D and not monthly.empty:
+        show(bar3d(monthly["YearMonth"], monthly["Revenue"], "Monthly revenue (full months only, Jan-Nov 2010)"))
+    elif ok(monthly, "monthly_revenue"):
+        show(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
                                 title="Monthly revenue (full months only, Jan-Nov 2010)"),
                         use_container_width=True)
     monthly_all = load("monthly_revenue_all")
     if not monthly_all.empty:
         with st.expander("Show all months including the two partial months"):
-            st.plotly_chart(px.bar(monthly_all, x="YearMonth", y="Revenue", color="MonthType"),
+            show(px.bar(monthly_all, x="YearMonth", y="Revenue", color="MonthType"),
                             use_container_width=True)
 
     left, right = st.columns(2)
     with left:
         dow = load("dow_revenue")
-        if ok(dow, "dow_revenue"):
-            st.plotly_chart(px.bar(dow, x="DayOfWeek", y="Revenue", title="Revenue by day of week"),
+        if USE_3D and not dow.empty:
+            show(bar3d(dow["DayOfWeek"], dow["Revenue"], "Revenue by day of week"))
+        elif ok(dow, "dow_revenue"):
+            show(px.bar(dow, x="DayOfWeek", y="Revenue", title="Revenue by day of week"),
                             use_container_width=True)
     with right:
         hourly = load("hourly_revenue")
-        if ok(hourly, "hourly_revenue"):
-            st.plotly_chart(px.bar(hourly, x="Hour", y="Revenue", title="Revenue by hour of day"),
+        if USE_3D and not hourly.empty:
+            show(bar3d(hourly["Hour"], hourly["Revenue"], "Revenue by hour of day"))
+        elif ok(hourly, "hourly_revenue"):
+            show(px.bar(hourly, x="Hour", y="Revenue", title="Revenue by hour of day"),
                             use_container_width=True)
 
     st.subheader("Product performance")
@@ -249,13 +320,13 @@ with tabs[4]:
     with left:
         tr = load("top_products_revenue")
         if ok(tr, "top_products_revenue"):
-            st.plotly_chart(px.bar(tr.sort_values("TotalRevenue"), x="TotalRevenue", y="Description",
+            show(px.bar(tr.sort_values("TotalRevenue"), x="TotalRevenue", y="Description",
                                    orientation="h", title="Top 10 products by revenue"),
                             use_container_width=True)
     with right:
         tq = load("top_products_quantity")
         if ok(tq, "top_products_quantity"):
-            st.plotly_chart(px.bar(tq.sort_values("TotalQuantitySold"), x="TotalQuantitySold", y="Description",
+            show(px.bar(tq.sort_values("TotalQuantitySold"), x="TotalQuantitySold", y="Description",
                                    orientation="h", title="Top 10 products by units sold"),
                             use_container_width=True)
 
@@ -266,17 +337,17 @@ with tabs[4]:
         fig.add_hline(y=80, line_dash="dash", line_color="red")
         fig.add_vline(x=20, line_dash="dash", line_color="gray")
         fig.update_layout(xaxis_title="% of products (ranked by revenue)", yaxis_title="Cumulative % of revenue")
-        st.plotly_chart(fig, use_container_width=True)
+        show(fig, use_container_width=True)
 
     st.subheader("Customer view (customers with a valid ID only)")
     cust = load("customer_summary")
     if ok(cust, "customer_summary"):
         left, right = st.columns(2)
         with left:
-            st.plotly_chart(px.pie(cust, names="CustomerType", values="Customers",
+            show(px.pie(cust, names="CustomerType", values="Customers",
                                    title="Customers: repeat vs one-time"), use_container_width=True)
         with right:
-            st.plotly_chart(px.bar(cust, x="CustomerType", y="TotalSpend",
+            show(px.bar(cust, x="CustomerType", y="TotalSpend",
                                    title="Total spend: repeat vs one-time"), use_container_width=True)
     detail = load("customer_detail")
     if not detail.empty:
@@ -343,7 +414,7 @@ with tabs[6]:
     st.subheader("Goal evaluation")
     scores = load("goal_scores")
     if ok(scores, "goal_scores"):
-        st.plotly_chart(px.bar(scores.sort_values("Total"), x="Total", y="Goal", orientation="h",
+        show(px.bar(scores.sort_values("Total"), x="Total", y="Goal", orientation="h",
                                title="Candidate goal scores (out of 30)"), use_container_width=True)
         table(scores)
 
