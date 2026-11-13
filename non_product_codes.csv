@@ -1,0 +1,13 @@
+StockCode,Rows,Description
+POST,865,POSTAGE
+M,844,Manual
+DOT,736,DOTCOM POSTAGE
+C2,138,CARRIAGE
+D,100,Discount
+ADJUST,67,Adjustment by john on 26/01/2010 16
+S,41,SAMPLES
+AMAZONFEE,9,AMAZON FEE
+m,4,Manual
+B,3,Adjust bad debt
+GIFT,1,No description
+C3,1,No description

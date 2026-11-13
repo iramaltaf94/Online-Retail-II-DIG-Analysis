@@ -1,0 +1,11 @@
+ID,Area,Goal,Metric,Baseline,Target,Impact,Effort,Priority
+DQ1,Data quality,Zero duplicates in future analysis-ready datasets,df.duplicated().sum(),"6,865 duplicate rows",0 duplicate rows,Medium,Low,Standard improvement
+DQ2,Data quality,Reduce missing Customer IDs,Missing count in Customer ID,"102,911 missing of 502,512 rows","No more than 90,000 missing",High,High,Strategic initiative
+ST1,Sales trends,Complete peak-season readiness before August,"YearMonth, Revenue",Revenue builds 2010-08 to 2010-11; peak 2010-11,"Ready by 31 July, maintained through 30 November",High,Medium,Quick win 1
+ST2,Sales trends,Align operational coverage with business-hour demand,"Hour, Revenue","Activity starts around Hour 7, peaks at Hour 12, tapers by Hour 20","Coverage for Hours 7-20, strongest at Hour 12",Medium,Low,Operational improvement
+ST3,Sales trends,Report Saturday separately from active-day demand,"DayOfWeek, row count",Saturday: 400 rows,Saturday reported as a limited-processing day,Medium,Low,Operational improvement
+PP1,Product performance,Increase Regency Cakestand 3 Tier revenue by 5%,"TotalRevenue, StockCode 22423","£169,912.76","£178,408.40",Medium,Low,Focused product action
+PP2,Product performance,Increase White Hanging Heart T-Light Holder revenue by 5% while keeping volume,"TotalRevenue, TotalQuantitySold, StockCode 85123A","£158,305.72 and 58,386 units","£166,221.01 and at least 58,386 units",Medium,Low,Focused product action
+PP3,Product performance,Raise top-20% product revenue contribution to 80%,CumulativeRevenuePct,"78.0% from 848 of 4,242 products",80.0%,High,Medium,Quick win 2
+CV1,Customer view,"Increase repeat customers to 3,000","TotalOrders, CustomerType","2,873 repeat and 1,412 one-time","3,000 repeat and 1,285 one-time",Medium,Medium,Retention initiative
+CV2,Customer view,Increase repeat-customer revenue by 5%,TotalSpend by CustomerType,"£8,144,787","£8,552,027",High,Medium,Quick win 3

@@ -1,0 +1,17 @@
+Level,Feature,Meaning
+Row,Revenue,Quantity x Price for each row
+Date,Year,Calendar year of the invoice
+Date,Month,Month number (1-12)
+Date,MonthName,Month name
+Date,YearMonth,Year-month label used for trend lines
+Date,DayOfWeek,Day name of the invoice
+Date,Hour,Hour of the day (0-23)
+Product,TotalQuantitySold,Units sold per product
+Product,TotalRevenue,Revenue per product
+Product,NumInvoices,Distinct invoices containing the product
+Product,NumUniqueCustomers,Distinct identified customers who bought the product
+Invoice,ItemsPerInvoice,Number of line items on the invoice (basket size proxy)
+Invoice,InvoiceTotal,Total revenue of the invoice
+Customer,TotalSpend,Total revenue per identified customer
+Customer,TotalOrders,Distinct invoices per customer
+Customer,CustomerType,Repeat (more than 1 order) or One-time

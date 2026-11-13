@@ -1,0 +1,5 @@
+Dataset,Rows,Meaning
+operational_df,2809,"Postage, fees, discounts and manual entries (not product sales)"
+cancellations_df,9606,Customer-cancelled orders (invoices starting with C)
+writeoffs_df,2119,Negative quantity but not a cancellation (likely stock corrections)
+zero_price_df,1550,"Zero-price entries (samples, giveaways, stock movements)"

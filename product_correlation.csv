@@ -1,0 +1,5 @@
+Variable,TotalQuantitySold,TotalRevenue,NumInvoices,NumUniqueCustomers
+TotalQuantitySold,1.0,0.635,0.722,0.675
+TotalRevenue,0.635,1.0,0.832,0.768
+NumInvoices,0.722,0.832,1.0,0.965
+NumUniqueCustomers,0.675,0.768,0.965,1.0

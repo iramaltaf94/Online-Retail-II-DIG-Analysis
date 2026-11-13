@@ -1,0 +1,7 @@
+Step,Action,RowsRemoved,RowsRemaining
+0,Raw dataset,0,525461
+1,Dropped exact duplicate rows,6865,518596
+2,"Removed non-product StockCodes (postage, fees, discounts, manual entries)",2809,515787
+3a,Separated cancellations (C-invoices),9606,506181
+3b,Separated non-C negative-quantity write-offs,2119,504062
+4,Removed zero-price rows (non-revenue entries),1550,502512

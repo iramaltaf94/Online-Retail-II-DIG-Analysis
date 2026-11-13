@@ -1,0 +1,17 @@
+Metric,Value
+Raw rows,"525,461"
+Columns,8
+Date range,2009-12-01 to 2010-12-09
+Unique invoices,"28,816"
+Unique stock codes,"4,632"
+Unique descriptions,"4,681"
+Countries,40
+United Kingdom rows,"485,852"
+Exact duplicate rows,"6,865"
+Missing Customer ID,"107,927 (20.54%)"
+Missing Description,"2,928 (0.56%)"
+Quantity range,"-9,600 to 19,152"
+Price range,"-53,594.36 to 25,111.09"
+Mean Quantity,10.34
+Median Quantity,3.0
+Mean Price,4.69

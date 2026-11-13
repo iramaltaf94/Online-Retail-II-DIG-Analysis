@@ -1,0 +1,13 @@
+Metric,Value
+Clean rows,502512.0
+Total revenue,9807043.894000001
+Invoices,20609.0
+Products,4242.0
+Identified customers,4285.0
+Countries,40.0
+Average invoice value,475.8621909845213
+Average items per invoice,24.38313358241545
+Top-10 overlap (revenue vs quantity),3.0
+Top 20% product count,848.0
+Top 20% revenue share (%),78.0
+Repeat customer revenue share (%),94.3
