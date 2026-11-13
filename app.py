@@ -39,13 +39,13 @@ with tab1:
     st.subheader("Monthly Revenue (full months only)")
     st.plotly_chart(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
                             labels={"Revenue": "Revenue (£)"}), use_container_width=True)
-    st.caption("Dec 2009 aur Dec 2010 partial months hain, isliye exclude kiye gaye. "
-               "Revenue Aug se Nov tak badhta hai.")
+    st.caption("Dec 2009 and Dec 2010 are partial months, so they are excluded. "
+               "Revenue grows from Aug se Nov.")
     a, b = st.columns(2)
     a.subheader("Day of Week")
     a.plotly_chart(px.bar(dow, x="DayOfWeek", y="Revenue", labels={"Revenue": "Revenue (£)"}),
                    use_container_width=True)
-    a.caption("Saturday ka almost zero hona platform ka pattern hai, customer behaviour nahi.")
+    a.caption("Near-zero Saturday revenue is a platform pattern, not customer behaviour.")
     b.subheader("Hour of Day")
     b.plotly_chart(px.bar(hourly, x="Hour", y="Revenue", labels={"Revenue": "Revenue (£)"}),
                    use_container_width=True)
@@ -59,8 +59,8 @@ with tab2:
     b.plotly_chart(px.bar(top_qty.iloc[::-1], x="TotalQuantitySold", y="Description", orientation="h",
                           labels={"TotalQuantitySold": "Units sold"}), use_container_width=True)
     common = set(top_rev["Description"].str.strip()) & set(top_qty["Description"].str.strip())
-    st.info(f"Sirf {len(common)} products dono top-10 lists me hain — sirf volume dekhne se "
-            "revenue wale products miss ho sakte hain.")
+    st.info(f"Only {len(common)} products appear in both top-10 — looking at "
+            "volume alone can miss high-revenue products.")
 
     st.subheader("Revenue Concentration (Pareto)")
     fig = px.line(pareto, x="ProductRankPct", y="CumulativeRevenuePct",
@@ -69,7 +69,7 @@ with tab2:
     fig.add_hline(y=80, line_dash="dash")
     fig.add_vline(x=20, line_dash="dash")
     st.plotly_chart(fig, use_container_width=True)
-    st.info(f"Top 20% products revenue ka lagbhag **{cut:.0f}%** generate karte hain.")
+    st.info(f"The top 20% of products generate about **{cut:.0f}%** of revenue.")
 
 with tab3:
     a, b = st.columns(2)
@@ -78,7 +78,7 @@ with tab3:
     b.subheader("Revenue by Customer Type")
     b.plotly_chart(px.bar(cust, x="CustomerType", y="TotalSpend", labels={"TotalSpend": "Spend (£)"}),
                    use_container_width=True)
-    st.caption("Sirf valid Customer ID wali rows (~80% data) use hui hain.")
+    st.caption("Only rows with a valid Customer ID (~80% of the data) are used.")
 
 st.divider()
 st.caption("Source: Online Retail II, UCI Machine Learning Repository · Built with Python, pandas, Streamlit")
