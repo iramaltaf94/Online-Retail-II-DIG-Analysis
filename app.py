@@ -418,4 +418,4 @@ with tabs[8]:
         "**matplotlib and seaborn** for charts in the notebook",
         "**Google Colab and Google Drive** for the notebook environment and data storage",
         "**Streamlit and Plotly** for this dashboard",
-        "**GitHub and Streamlit Community Cloud** for hosting and automatic deployment
+        "**GitHub and Streamlit Community Cloud** for hosting and automatic deployment",
