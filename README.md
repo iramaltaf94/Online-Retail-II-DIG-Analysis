@@ -1,6 +1,7 @@
 # Online Retail II Data Analysis | DIG Framework
 
 A collaborative **team learning project** (Jul 2026 – Aug 2026) built on the Online Retail II practice dataset, following the **DIG Framework**: Discover → Interpret → Goal-Set.
+*Live Dashboard:* https://iram-retail-dashboard.streamlit.app
 
 > This was a practice/learning project and was not conducted for a real company.
 
