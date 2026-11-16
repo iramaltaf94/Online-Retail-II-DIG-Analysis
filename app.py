@@ -37,12 +37,12 @@ def bullets(items):
 
 
 # ---------- Chart styling ----------
-PALETTE = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#ec4899", "#f97316"]
-GRADIENT = [[0, "#14b8a6"], [0.25, "#10b981"], [0.5, "#f59e0b"], [0.75, "#f97316"], [1, "#ec4899"]]
+PALETTE = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"]
+GRADIENT = [[0, "#93c5fd"], [1, "#1d4ed8"]]  # light blue (low) to dark blue (high)
 
 
 def show(fig, **_):
-    """Apply one consistent, colorful style to every chart, then display it."""
+    """Apply one consistent, modern style to every chart, then display it."""
     fig.update_layout(
         template="plotly_white", colorway=PALETTE, font=dict(size=13),
         title_font=dict(size=16), margin=dict(l=10, r=10, t=50, b=10),
@@ -50,27 +50,24 @@ def show(fig, **_):
     )
     for tr in fig.data:
         if tr.type == "bar":
-            # White outline between bars; a single-series bar chart gets a different colour per bar
+            # White outline between bars; colour a single-series bar chart by its value
             tr.marker.line.color = "white"
             tr.marker.line.width = 1.5
             if tr.marker.color is None and len(fig.data) == 1:
-                n = len(tr.x) if tr.x is not None else len(tr.y)
-                tr.marker.color = [PALETTE[i % len(PALETTE)] for i in range(n)]
+                tr.marker.color = tr.x if tr.orientation == "h" else tr.y
+                tr.marker.colorscale = GRADIENT
         elif tr.type == "pie":
             tr.hole = 0.45  # donut style
             tr.textinfo = "percent+label"
     st.plotly_chart(fig, use_container_width=True)
 
 
-def bar3d(labels, values, title, z_title="Revenue (£)", max_ticks=14, tick_len=18,
-          colorscale="Turbo", color_by_value=False):
+def bar3d(labels, values, title, z_title="Revenue (£)", max_ticks=14, tick_len=18):
     """Build a real 3D bar chart from boxes (Plotly Mesh3d). Drag to rotate, scroll to zoom.
-    Each bar gets its own colour (rainbow by position). Set color_by_value=True to colour by height
-    instead (better for histograms with many bars).
     Long labels are shortened on the axis (full text stays in the hover box)."""
     labels = [str(lab) for lab in labels]
     values = [float(v) for v in values]
-    w = 0.38  # half the width of one bar
+    w = 0.32  # half the width of one bar
     # 12 triangles = the 6 faces of one box (vertices 0-3 are the base, 4-7 the top)
     faces = [(0, 1, 2), (0, 2, 3), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
              (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]
@@ -83,12 +80,12 @@ def bar3d(labels, values, title, z_title="Revenue (£)", max_ticks=14, tick_len=
         i += [base + f[0] for f in faces]
         j += [base + f[1] for f in faces]
         k += [base + f[2] for f in faces]
-        intensity += [v if color_by_value else n] * 8
+        intensity += [v] * 8
         hover += [f"{lab}<br>{z_title}: {v:,.0f}"] * 8
     fig = go.Figure(go.Mesh3d(
-        x=x, y=y, z=z, i=i, j=j, k=k, intensity=intensity, colorscale=colorscale,
+        x=x, y=y, z=z, i=i, j=j, k=k, intensity=intensity, colorscale=GRADIENT,
         showscale=False, flatshading=True, text=hover, hoverinfo="text",
-        lighting=dict(ambient=0.7, diffuse=0.9, specular=0.4, roughness=0.3),
+        lighting=dict(ambient=0.6, diffuse=0.8, specular=0.2),
     ))
     # Show at most max_ticks labels so crowded charts (e.g. histograms) stay readable
     step = max(1, -(-len(labels) // max_ticks))
@@ -100,7 +97,7 @@ def bar3d(labels, values, title, z_title="Revenue (£)", max_ticks=14, tick_len=
             xaxis=dict(tickmode="array", tickvals=tick_pos, ticktext=tick_txt, title="", tickangle=-30),
             yaxis=dict(visible=False),
             zaxis=dict(title=z_title),
-            aspectmode="manual", aspectratio=dict(x=2.4, y=0.9, z=1.0),
+            aspectmode="manual", aspectratio=dict(x=2.4, y=0.7, z=0.9),
             camera=dict(eye=dict(x=1.5, y=-1.8, z=0.9)),
         ),
     )
@@ -267,17 +264,15 @@ with tabs[3]:
     st.subheader("Distributions")
     st.caption("Values above the 99th percentile are hidden so the main shape stays readable. All three are right-skewed.")
     h1, h2, h3 = st.columns(3)
-    for col, name, label, cs in [(h1, "hist_quantity", "Quantity per row", "Plasma"),
-                                 (h2, "hist_price", "Price per unit (£)", "Viridis"),
-                                 (h3, "hist_invoice_total", "Invoice total (£)", "Turbo")]:
+    for col, name, label in [(h1, "hist_quantity", "Quantity per row"),
+                             (h2, "hist_price", "Price per unit (£)"),
+                             (h3, "hist_invoice_total", "Invoice total (£)")]:
         with col:
             h = load(name)
             if ok(h, name):
                 h["BinMid"] = (h["BinStart"] + h["BinEnd"]) / 2
                 if USE_3D:
-                    # Histograms have many bars, so colour by height with a different theme each
-                    show(bar3d(h["BinMid"].round(1), h["Count"], label, z_title="Count", max_ticks=6,
-                               colorscale=cs, color_by_value=True))
+                    show(bar3d(h["BinMid"].round(1), h["Count"], label, z_title="Count", max_ticks=6))
                 else:
                     fig = px.bar(h, x="BinMid", y="Count", title=label)
                     fig.update_layout(xaxis_title=label, bargap=0.05)
@@ -315,13 +310,13 @@ with tabs[4]:
         show(bar3d(monthly["YearMonth"], monthly["Revenue"], "Monthly revenue (full months only, Jan-Nov 2010)"))
     elif ok(monthly, "monthly_revenue"):
         show(px.line(monthly, x="YearMonth", y="Revenue", markers=True,
-                     title="Monthly revenue (full months only, Jan-Nov 2010)"),
-             use_container_width=True)
+                                title="Monthly revenue (full months only, Jan-Nov 2010)"),
+                        use_container_width=True)
     monthly_all = load("monthly_revenue_all")
     if not monthly_all.empty:
         with st.expander("Show all months including the two partial months"):
             show(px.bar(monthly_all, x="YearMonth", y="Revenue", color="MonthType"),
-                 use_container_width=True)
+                            use_container_width=True)
 
     left, right = st.columns(2)
     with left:
@@ -330,14 +325,14 @@ with tabs[4]:
             show(bar3d(dow["DayOfWeek"], dow["Revenue"], "Revenue by day of week"))
         elif ok(dow, "dow_revenue"):
             show(px.bar(dow, x="DayOfWeek", y="Revenue", title="Revenue by day of week"),
-                 use_container_width=True)
+                            use_container_width=True)
     with right:
         hourly = load("hourly_revenue")
         if USE_3D and not hourly.empty:
             show(bar3d(hourly["Hour"], hourly["Revenue"], "Revenue by hour of day"))
         elif ok(hourly, "hourly_revenue"):
             show(px.bar(hourly, x="Hour", y="Revenue", title="Revenue by hour of day"),
-                 use_container_width=True)
+                            use_container_width=True)
 
     st.subheader("Product performance")
     left, right = st.columns(2)
@@ -374,7 +369,7 @@ with tabs[4]:
         left, right = st.columns(2)
         with left:
             show(px.pie(cust, names="CustomerType", values="Customers",
-                        title="Customers: repeat vs one-time"), use_container_width=True)
+                                   title="Customers: repeat vs one-time"), use_container_width=True)
         with right:
             if USE_3D:
                 show(bar3d(cust["CustomerType"], cust["TotalSpend"], "Total spend: repeat vs one-time",
